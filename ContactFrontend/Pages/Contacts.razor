@@ -1,0 +1,141 @@
+﻿@page "/contacts"
+@inject IJSRuntime JSRuntime
+
+<h2>Contacts</h2>
+
+<div class="container">
+    <div class="row">
+        <div class="text-left mb-4">
+            <Button data-toggle="modal" data-target="#contactModal"
+                    class="btn btn-primary btn-sm text-center"
+                    @onclick="AddForm_Click">
+                <i class="fas fa-plus-circle"></i>
+                Add Contact
+            </Button>
+        </div>
+        <div class="input-group col-md-4 offset-md-6">
+            <input type="text" class="form-control" placeholder="Search Contact" @bind="SearchString" />
+
+            <div class="text-right mb-4">
+                <Button style="margin-left: 5px" class="btn btn-primary btn-sm text-center"
+                        @onclick="SearchContact_Click">
+                    <i class="fas fa-search"></i>
+                    Search
+                </Button>
+            </div>
+        </div>
+    </div>
+</div>
+<br />
+
+@if (_contacts == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class='table table-hover table-sm'>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Address</th>
+                <th>Email</th>
+                <th>Mobile</th>
+                <th></th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var contact in _contacts)
+            {
+                <tr>
+                    <td>@contact.Name</td>
+                    <td>@contact.Address</td>
+                    <td>@contact.Email</td>
+                    <td>@contact.Mobile</td>
+                    <td>
+                        <Button data-toggle="modal" data-target="#contactModal"
+                                class="btn btn-outline-dark btn-sm text-center"
+                                @onclick="(() => EditForm_Click(contact))">
+                            <i class="fas fa-user-edit"></i>
+                        </Button>
+                        <Button data-toggle="modal" data-target="#deleteModal"
+                                class="btn btn-outline-danger btn-sm text-center"
+                                @onclick="(() => ForDelete(contact))">
+                            <i class="fas fa-trash-alt"></i>
+                        </Button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<AddEditForm Title="@Title" Contact="@_contact" OnClose="@AddEditForm_Close"></AddEditForm>
+<DeleteContact Contact="@_contact" OnClick="@DeleteContact" />
+
+@code {
+    Contact _contact = new Contact();
+    private IEnumerable<Contact> _contacts;
+    private string Title { get; set; }
+    private string SearchString { get; set; }
+    private ContactServiceClient _client;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _client = new ContactServiceClient();
+        // Call Load Method to get Contacts
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        _contacts = await _client.GetContactsAsync();
+    }
+
+    private void AddForm_Click()
+    {
+        Title = "Add Contact";
+        _contact = new Contact();
+    }
+
+    private void EditForm_Click(Contact contact)
+    {
+        Title = "Edit Contact";
+        _contact = contact;
+    }
+
+    private void ForDelete(Contact contact)
+    {
+        _contact = contact;
+    }
+
+    private async Task DeleteContact()
+    {
+        await _client.DeleteContactAsync(_contact.Id);
+        await JSRuntime.InvokeAsync<object>("HideModal", "deleteModal");
+        await Load();
+    }
+
+    private async void AddEditForm_Close()
+    {
+        await Load();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SearchContact_Click()
+    {
+        if (string.IsNullOrEmpty(SearchString) == false)
+        {
+            _contacts = _contacts.Where(c =>
+                         c.Name.Contains(SearchString) ||
+                         c.Address.Contains(SearchString) ||
+                         c.Email.Contains(SearchString) ||
+                         c.Mobile.Contains(SearchString));
+        }
+        else
+        {
+            await Load();
+        }
+    }
+}
